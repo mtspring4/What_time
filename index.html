@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>とけいのがくしゅう</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@900&display=swap');
+
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: #f0fdf4;
+            touch-action: manipulation;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100dvh;
+        }
+
+        .game-container {
+            width: 100vw;
+            height: 100dvh;
+            max-width: 450px;
+            background: white;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-height: 700px) {
+            .game-container {
+                height: 98dvh;
+                border-radius: 32px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            }
+        }
+
+        .title-bg {
+            background: repeating-linear-gradient(
+                45deg,
+                #e0f2fe,
+                #e0f2fe 40px,
+                #ffffff 40px,
+                #ffffff 80px
+            );
+        }
+
+        @keyframes whaleFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        .whale-anim {
+            animation: whaleFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        .btn-bounce {
+            animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            z-index: 70;
+            animation: confettiFall 3s linear forwards;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        @keyframes blinkRed {
+            0%, 100% { border-color: #ef4444; background-color: #fee2e2; box-shadow: 0 0 0 4px #fee2e2; }
+            50% { border-color: #b91c1c; background-color: #fca5a5; box-shadow: 0 0 0 6px #fecaca; }
+        }
+
+        .error-shake {
+            animation: shake 0.4s ease-in-out !important;
+            z-index: 50 !important;
+        }
+        .error-blink {
+            animation: blinkRed 0.3s ease-in-out 3 !important;
+            border-width: 4px !important;
+            border-style: solid !important;
+            z-index: 50 !important;
+        }
+
+        #clock-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            padding: 5px;
+            position: relative;
+        }
+
+        #clock-canvas {
+            max-height: 100%;
+            max-width: 100%;
+            aspect-ratio: 1 / 1;
+            z-index: 10;
+        }
+
+        .btn-number {
+            transition: transform 0.1s;
+            box-shadow: 0 2px 0 #e2e8f0;
+            -webkit-tap-highlight-color: transparent;
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
+            font-size: 1.5rem;
+        }
+        .btn-number:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 0px 0 #e2e8f0;
+        }
+        .btn-number:disabled {
+            background-color: #f1f5f9 !important;
+            color: #cbd5e1 !important;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .input-box-active-hour {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+            box-shadow: 0 0 0 4px #fee2e2;
+        }
+        .input-box-active-min {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+            box-shadow: 0 0 0 4px #dbeafe;
+        }
+
+        .sunburst-v4 {
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            background-image: conic-gradient(
+                transparent 0deg 10deg,
+                #fde68a 10deg 30deg,
+                transparent 30deg 50deg,
+                #fde68a 50deg 70deg,
+                transparent 70deg 90deg,
+                #fde68a 90deg 110deg,
+                transparent 110deg 130deg,
+                #fde68a 130deg 150deg,
+                transparent 150deg 170deg,
+                #fde68a 170deg 190deg,
+                transparent 190deg 210deg,
+                #fde68a 210deg 230deg,
+                transparent 230deg 250deg,
+                #fde68a 250deg 270deg,
+                transparent 270deg 290deg,
+                #fde68a 290deg 310deg,
+                transparent 310deg 330deg,
+                #fde68a 330deg 350deg,
+                transparent 350deg 360deg
+            );
+            border-radius: 50%;
+            opacity: 0.8;
+            z-index: 5;
+            animation: rotateSun 15s linear infinite;
+            mask-image: radial-gradient(circle, black 30%, transparent 75%);
+        }
+
+        @keyframes rotateSun {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .feedback-content {
+            position: relative;
+            z-index: 60;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .fb-text-glow {
+            text-shadow: 0 0 12px white, 0 0 4px white, 2px 2px 0px #b91c1c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <div id="title-screen" class="absolute inset-0 z-[100] title-bg flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-6xl font-black text-blue-600 mb-12 drop-shadow-lg" style="-webkit-text-stroke: 2px white;">
+            いま、<br>なんじ？
+        </h1>
+        <div id="title-whale" class="text-9xl mb-16 whale-anim">🐳</div>
+        <button id="btn-start" class="btn-bounce w-full max-w-xs py-5 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-bold text-3xl shadow-xl border-b-8 border-orange-700 active:border-b-0 active:translate-y-2 transition-all">
+            はじめる！
+        </button>
+    </div>
+
+    <div id="clock-container">
+        <div id="sunburst" class="sunburst-v4 hidden"></div>
+        <canvas id="clock-canvas"></canvas>
+        <div id="question-splash" class="hidden absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40 px-4 text-center">
+            <div id="splash-text" class="text-5xl font-extrabold text-blue-600 drop-shadow-lg bg-white/90 px-8 py-4 rounded-full border-4 border-blue-400">だい1もん</div>
+            <div id="splash-subtext" class="text-xl font-bold text-orange-500 mt-3 bg-white/90 px-6 py-2 rounded-full border-2 border-orange-300 hidden">ちょっとむずかしくなるよ！</div>
+        </div>
+    </div>
+
+    <div class="relative bg-yellow-50 rounded-t-[24px] shadow-inner shrink-0 border-t-2 border-yellow-200 min-h-[220px]">
+        <div id="input-container-all" class="px-4 pb-3 pt-2">
+            <div class="flex justify-center items-center gap-2 mb-2">
+                <div id="input-hour" class="w-12 h-14 bg-white border-4 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-red-500 shadow-sm cursor-pointer transition-all">?</div>
+                <span class="text-lg font-bold text-gray-700">じ</span>
+                <div id="input-minute" class="w-12 h-14 bg-white border-4 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-blue-500 shadow-sm cursor-pointer transition-all">??</div>
+                <span class="text-lg font-bold text-gray-700">ふん</span>
+            </div>
+            <div id="input-area">
+                <div id="keypad" class="grid grid-cols-5 gap-1.5 mb-2"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-clear" class="py-2.5 bg-gray-400 text-white rounded-lg font-bold text-md shadow-sm">けす</button>
+                    <button id="btn-check" class="py-2.5 bg-orange-500 text-white rounded-xl font-bold text-md shadow-md">できた！</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="correction-area" class="hidden absolute inset-0 bg-yellow-50 rounded-t-[24px] flex flex-col items-center justify-center p-4 z-20">
+            <div class="text-center mb-4">
+                <p class="text-lg font-bold text-gray-500">せいかいは</p>
+                <div class="flex items-center justify-center gap-2 my-2">
+                    <p id="answer-text" class="text-5xl font-extrabold text-orange-600 leading-none">11じ 10ふん</p>
+                </div>
+                <p class="text-lg font-bold text-gray-700">だよ</p>
+            </div>
+            <button id="btn-ok" class="w-full max-w-[180px] py-4 bg-blue-500 text-white rounded-full font-bold text-2xl shadow-lg">OK!</button>
+        </div>
+    </div>
+
+    <div id="result-modal" class="hidden absolute inset-0 bg-white z-[200] flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+        <div id="confetti-container" class="absolute inset-0 pointer-events-none"></div>
+        <div class="relative z-10">
+            <div id="result-rank-title" class="text-2xl font-black text-blue-500 mb-2 italic">称号：とけいビギナー</div>
+            <div id="result-emoji" class="text-[120px] mb-6 leading-none whale-anim">🐳</div>
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">おわり！</h2>
+            <div class="bg-yellow-100 rounded-3xl px-8 py-4 mb-6 border-4 border-yellow-300 shadow-inner">
+                <div id="result-score" class="text-4xl font-black text-orange-600">7 / 10</div>
+                <div class="text-sm font-bold text-yellow-700 mt-1 uppercase tracking-widest">Score</div>
+            </div>
+            <p id="result-comment" class="text-xl text-gray-700 mb-10 font-bold leading-relaxed px-4 whitespace-pre-wrap"></p>
+            <button id="btn-restart" class="w-full max-w-[280px] py-5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full font-black text-3xl shadow-xl border-b-8 border-indigo-800 active:border-b-0 active:translate-y-2 transition-all">
+                もういっかい！
+            </button>
+        </div>
+    </div>
+
+    <div id="feedback-overlay" class="hidden absolute inset-0 bg-white/10 flex items-center justify-center z-50 pointer-events-none">
+        <div class="feedback-content">
+            <div id="fb-text" class="text-5xl font-black text-red-600 fb-text-glow italic tracking-tighter mb-2"></div>
+            <div id="fb-icon" class="text-[12rem] leading-none drop-shadow-2xl"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('clock-canvas');
+    const ctx = canvas.getContext('2d');
+    const inputHour = document.getElementById('input-hour');
+    const inputMin = document.getElementById('input-minute');
+    const keypad = document.getElementById('keypad');
+    const inputContainerAll = document.getElementById('input-container-all');
+    const correctionArea = document.getElementById('correction-area');
+    const answerText = document.getElementById('answer-text');
+    const titleScreen = document.getElementById('title-screen');
+    const btnStart = document.getElementById('btn-start');
+    const btnCheck = document.getElementById('btn-check');
+    
+    let currentQuestion = 1;
+    let score = 0;
+    let targetHour = 0; 
+    let targetMinute = 0;
+    let currentInputMode = 'hour';
+    let typedHour = "";
+    let typedMin = "";
+    let isAcceptingInput = false;
+    let isFirstInputForMode = true;
+    let usedQuestions = new Set(); 
+
+    btnStart.onclick = () => {
+        titleScreen.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+        titleScreen.style.opacity = '0';
+        titleScreen.style.transform = 'scale(1.1)';
+        usedQuestions.clear();
+        setTimeout(() => {
+            titleScreen.classList.add('hidden');
+            newQuestion();
+        }, 500);
+    };
+
+    function initKeypad() {
+        keypad.innerHTML = '';
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].forEach(num => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-number bg-white text-gray-700 border border-gray-200 rounded-lg font-bold';
+            btn.id = `btn-num-${num}`;
+            btn.innerText = num;
+            btn.onclick = () => handleNumber(num);
+            keypad.appendChild(btn);
+        });
+        updateKeypadState();
+    }
+
+    function updateKeypadState() {
+        const btn0 = document.getElementById('btn-num-0');
+        if (!btn0) return;
+
+        // 時の入力モードかつ、1文字も入っていないときは0を無効化
+        if (currentInputMode === 'hour' && (isFirstInputForMode || typedHour === "")) {
+            btn0.disabled = true;
+        } else {
+            btn0.disabled = false;
+        }
+    }
+
+    function handleNumber(num) {
+        if (!isAcceptingInput) return;
+        
+        // 無効化されているボタンのクリック（プログラム的呼び出しなど）を防止
+        if (currentInputMode === 'hour' && (isFirstInputForMode || typedHour === "") && num === 0) return;
+
+        clearErrorStyles();
+
+        if (currentInputMode === 'hour') {
+            if (isFirstInputForMode || typedHour === "") {
+                typedHour = num.toString();
+                isFirstInputForMode = false;
+                inputHour.innerText = typedHour;
+                // 1以外の数字（2-9）が入力されたら即分へ移動
+                if (num !== 1) setTimeout(() => setInputMode('minute'), 150);
+            } else {
+                if (typedHour === "1") {
+                    const ansHour = (targetHour === 0 || targetHour === 12) ? 12 : targetHour;
+                    // 1の次に3以上（3-9）が押されたら強制的に分へ
+                    // 0が押された時は10時として受け入れる
+                    if (num >= 3) {
+                        setInputMode('minute');
+                        handleNumber(num);
+                        return;
+                    } 
+                    if (ansHour === 1 && (num === 1 || num === 2)) {
+                        setInputMode('minute');
+                        handleNumber(num); 
+                        return;
+                    }
+                    typedHour += num.toString();
+                    inputHour.innerText = typedHour;
+                    setTimeout(() => setInputMode('minute'), 150);
+                } else {
+                    typedHour = num.toString();
+                    inputHour.innerText = typedHour;
+                    if (num !== 1) setTimeout(() => setInputMode('minute'), 150);
+                }
+            }
+        } else {
+            if (isFirstInputForMode || typedMin === "") {
+                typedMin = num.toString();
+                isFirstInputForMode = false;
+                inputMin.innerText = typedMin;
+            } else {
+                if (typedMin.length < 2) {
+                    typedMin += num.toString();
+                    inputMin.innerText = typedMin;
+                } else {
+                    typedMin = num.toString();
+                    inputMin.innerText = typedMin;
+                }
+            }
+        }
+        updateKeypadState();
+    }
+
+    inputHour.onclick = () => setInputMode('hour');
+    inputMin.onclick = () => setInputMode('minute');
+
+    function setInputMode(mode) {
+        currentInputMode = mode;
+        isFirstInputForMode = true; 
+        inputHour.classList.toggle('input-box-active-hour', mode === 'hour');
+        inputMin.classList.toggle('input-box-active-min', mode === 'minute');
+        clearErrorStyles();
+        updateKeypadState();
+    }
+
+    function clearErrorStyles() {
+        inputHour.classList.remove('error-shake', 'error-blink');
+        inputMin.classList.remove('error-shake', 'error-blink');
+    }
+
+    document.getElementById('btn-clear').onclick = () => {
+        if (!isAcceptingInput) return;
+        if (currentInputMode === 'hour') { typedHour = ""; inputHour.innerText = "?"; }
+        else { typedMin = ""; inputMin.innerText = "??"; }
+        isFirstInputForMode = false;
+        clearErrorStyles();
+        updateKeypadState();
+    };
+
+    btnCheck.onclick = () => {
+        if (!isAcceptingInput) return;
+        let hourError = typedHour === "";
+        let minError = typedMin === "";
+        if (hourError || minError) {
+            inputHour.classList.remove('input-box-active-hour');
+            inputMin.classList.remove('input-box-active-min');
+            clearErrorStyles();
+            void inputHour.offsetWidth; 
+            if (hourError) inputHour.classList.add('error-shake', 'error-blink');
+            if (minError) inputMin.classList.add('error-shake', 'error-blink');
+            setTimeout(() => {
+                if (currentInputMode === 'hour') inputHour.classList.add('input-box-active-hour');
+                else inputMin.classList.add('input-box-active-min');
+            }, 1000); 
+            return;
+        }
+        const h = parseInt(typedHour);
+        const m = parseInt(typedMin);
+        const displayTargetHour = (targetHour === 0 || targetHour === 12) ? 12 : targetHour;
+        const isCorrect = (h === displayTargetHour && m === targetMinute);
+        showFeedback(isCorrect, displayTargetHour, targetMinute);
+    };
+
+    function showFeedback(isCorrect, h, m) {
+        const overlay = document.getElementById('feedback-overlay');
+        const icon = document.getElementById('fb-icon');
+        const text = document.getElementById('fb-text');
+        const sunburst = document.getElementById('sunburst');
+        isAcceptingInput = false;
+        overlay.classList.remove('hidden');
+        if (isCorrect) {
+            score++;
+            text.innerText = "せいかい！";
+            icon.innerText = "⭕️";
+            icon.style.color = "#ef4444";
+            sunburst.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                sunburst.classList.add('hidden');
+                nextStep();
+            }, 1200);
+        } else {
+            text.innerText = "";
+            icon.innerText = "❌";
+            icon.style.color = "#3b82f6";
+            sunburst.classList.add('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                answerText.innerText = `${h}じ ${m}ふん`;
+                inputContainerAll.style.visibility = 'hidden';
+                correctionArea.classList.remove('hidden');
+            }, 1000);
+        }
+    }
+
+    document.getElementById('btn-ok').onclick = () => {
+        inputContainerAll.style.visibility = 'visible';
+        correctionArea.classList.add('hidden');
+        nextStep();
+    };
+
+    function nextStep() {
+        if (currentQuestion >= 10) showResult();
+        else {
+            currentQuestion++;
+            newQuestion();
+        }
+    }
+
+    function createConfetti() {
+        const container = document.getElementById('confetti-container');
+        container.innerHTML = '';
+        const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+        for (let i = 0; i < 60; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDelay = Math.random() * 3 + 's';
+            confetti.style.width = Math.random() * 10 + 6 + 'px';
+            confetti.style.height = confetti.style.width;
+            container.appendChild(confetti);
+        }
+    }
+
+    function showResult() {
+        const modal = document.getElementById('result-modal');
+        const scoreDisplay = document.getElementById('result-score');
+        const comment = document.getElementById('result-comment');
+        const emoji = document.getElementById('result-emoji');
+        const rankTitle = document.getElementById('result-rank-title');
+        scoreDisplay.innerText = `${score} / 10`;
+        if (score === 10) {
+            rankTitle.innerText = "称号：とけい神";
+            rankTitle.className = "text-2xl font-black text-yellow-500 mb-2 italic";
+            emoji.innerText = "🐋👑"; 
+            comment.innerText = "もうしぶんなし！\nきみは ほんとうの とけいマスターだ！";
+            createConfetti();
+        } else if (score >= 8) {
+            rankTitle.innerText = "称号：とけい名人";
+            rankTitle.className = "text-2xl font-black text-orange-500 mb-2 italic";
+            emoji.innerText = "🐋✨";
+            comment.innerText = "すごい！すごい！\nとけいのはかせに なれるよ！";
+            createConfetti();
+        } else if (score >= 5) {
+            rankTitle.innerText = "称号：とけい見習い";
+            rankTitle.className = "text-2xl font-black text-blue-500 mb-2 italic";
+            emoji.innerText = "🐳👍";
+            comment.innerText = "がんばったね！\nあともうすこしで めいじんだ！";
+        } else {
+            rankTitle.innerText = "称号：とけい初心者";
+            rankTitle.className = "text-2xl font-black text-gray-500 mb-2 italic";
+            emoji.innerText = "🐳💧";
+            comment.innerText = "ゆっくりで だいじょうぶ。\nなんかいも あそんで おぼえよう！";
+        }
+        modal.classList.remove('hidden');
+    }
+
+    document.getElementById('btn-restart').onclick = () => {
+        currentQuestion = 1; score = 0;
+        usedQuestions.clear();
+        document.getElementById('result-modal').classList.add('hidden');
+        newQuestion();
+    };
+
+    function newQuestion() {
+        const splash = document.getElementById('question-splash');
+        const splashText = document.getElementById('splash-text');
+        const splashSubtext = document.getElementById('splash-subtext');
+        isAcceptingInput = false;
+        splashText.innerText = `だい${currentQuestion}もん`;
+        if (currentQuestion === 5) splashSubtext.classList.remove('hidden');
+        else splashSubtext.classList.add('hidden');
+        splash.classList.remove('hidden');
+
+        let attempts = 0;
+        while (attempts < 100) {
+            targetHour = Math.floor(Math.random() * 12) + 1;
+            
+            if (currentQuestion === 6) {
+                let possibleMins = [];
+                for(let m=1; m<60; m++) if(m!==30) possibleMins.push(m);
+                targetMinute = possibleMins[Math.floor(Math.random() * possibleMins.length)];
+            } else if (currentQuestion <= 4) {
+                targetMinute = Math.random() < 0.5 ? 0 : 30;
+            } else if (currentQuestion <= 8) {
+                targetMinute = Math.floor(Math.random() * 12) * 5;
+            } else {
+                targetMinute = Math.random() < 0.7 ? Math.floor(Math.random() * 60) : Math.floor(Math.random() * 12) * 5;
+            }
+
+            const key = `${targetHour}:${targetMinute}`;
+            if (!usedQuestions.has(key)) {
+                usedQuestions.add(key);
+                break;
+            }
+            attempts++;
+        }
+
+        typedHour = ""; typedMin = "";
+        inputHour.innerText = "?"; inputMin.innerText = "??";
+        clearErrorStyles();
+        setInputMode('hour');
+        drawClock();
+
+        setTimeout(() => {
+            splash.classList.add('hidden');
+            isAcceptingInput = true;
+        }, 1200);
+    }
+
+    function drawClock() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const displaySize = Math.min(rect.width, rect.height);
+        canvas.width = displaySize * dpr;
+        canvas.height = displaySize * dpr;
+        ctx.scale(dpr, dpr);
+        const center = displaySize / 2;
+        const faceRadius = displaySize * 0.35; 
+        ctx.clearRect(0, 0, displaySize, displaySize);
+        ctx.beginPath();
+        ctx.arc(center, center, faceRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.strokeStyle = '#475569'; ctx.lineWidth = 3; ctx.stroke();
+        for (let i = 1; i <= 60; i++) {
+            const angle = (i * 6 - 90) * Math.PI / 180;
+            if (i % 5 === 0) {
+                const hNum = i / 5;
+                const xH = center + Math.cos(angle) * (faceRadius + 24);
+                const yH = center + Math.sin(angle) * (faceRadius + 24);
+                ctx.font = `bold ${displaySize * 0.1}px 'Zen Maru Gothic'`;
+                ctx.fillStyle = '#1e293b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(hNum, xH, yH);
+                const mNum = i === 60 ? 0 : i;
+                const xM = center + Math.cos(angle) * (faceRadius * 0.75);
+                const yM = center + Math.sin(angle) * (faceRadius * 0.75);
+                ctx.font = `bold ${displaySize * 0.045}px 'Zen Maru Gothic'`;
+                ctx.fillStyle = '#cbd5e1'; ctx.fillText(mNum, xM, yM);
+                ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = '#1e293b';
+                ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
+                ctx.lineTo(center + Math.cos(angle) * (faceRadius - 8), center + Math.sin(angle) * (faceRadius - 8));
+                ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = '#1e293b'; 
+                ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
+                ctx.lineTo(center + Math.cos(angle) * (faceRadius - 5), center + Math.sin(angle) * (faceRadius - 5));
+                ctx.stroke();
+            }
+        }
+        const hAngle = ((targetHour % 12) * 30 + (targetMinute / 60) * 30 - 90) * Math.PI / 180;
+        const mAngle = (targetMinute * 6 - 90) * Math.PI / 180;
+        drawHand(ctx, center, hAngle, faceRadius * 0.6, 8, '#ef4444');
+        drawHand(ctx, center, mAngle, faceRadius - 4, 4, '#3b82f6');
+        ctx.beginPath(); ctx.arc(center, center, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#334155'; ctx.fill();
+    }
+
+    function drawHand(ctx, center, angle, length, width, color) {
+        ctx.beginPath(); ctx.lineCap = 'round'; ctx.moveTo(center, center);
+        ctx.lineTo(center + Math.cos(angle) * length, center + Math.sin(angle) * length);
+        ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+        ctx.beginPath(); ctx.arc(center + Math.cos(angle) * length, center + Math.sin(angle) * length, width/2, 0, Math.PI*2);
+        ctx.fillStyle = color; ctx.fill();
+    }
+
+    window.addEventListener('resize', drawClock);
+    initKeypad();
+</script>
+</body>
+</html>

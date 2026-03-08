@@ -332,7 +332,6 @@
         const btn0 = document.getElementById('btn-num-0');
         if (!btn0) return;
 
-        // 時の入力モードかつ、1文字も入っていないときは0を無効化
         if (currentInputMode === 'hour' && (isFirstInputForMode || typedHour === "")) {
             btn0.disabled = true;
         } else {
@@ -342,8 +341,6 @@
 
     function handleNumber(num) {
         if (!isAcceptingInput) return;
-        
-        // 無効化されているボタンのクリック（プログラム的呼び出しなど）を防止
         if (currentInputMode === 'hour' && (isFirstInputForMode || typedHour === "") && num === 0) return;
 
         clearErrorStyles();
@@ -353,13 +350,10 @@
                 typedHour = num.toString();
                 isFirstInputForMode = false;
                 inputHour.innerText = typedHour;
-                // 1以外の数字（2-9）が入力されたら即分へ移動
                 if (num !== 1) setTimeout(() => setInputMode('minute'), 150);
             } else {
                 if (typedHour === "1") {
                     const ansHour = (targetHour === 0 || targetHour === 12) ? 12 : targetHour;
-                    // 1の次に3以上（3-9）が押されたら強制的に分へ
-                    // 0が押された時は10時として受け入れる
                     if (num >= 3) {
                         setInputMode('minute');
                         handleNumber(num);
@@ -605,39 +599,68 @@
         const center = displaySize / 2;
         const faceRadius = displaySize * 0.35; 
         ctx.clearRect(0, 0, displaySize, displaySize);
+
+        // 1時間ごとの背景色分け
+        for (let h = 0; h < 12; h++) {
+            const startAngle = (h * 30 - 90) * Math.PI / 180;
+            const endAngle = ((h + 1) * 30 - 90) * Math.PI / 180;
+            ctx.beginPath();
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, faceRadius, startAngle, endAngle);
+            ctx.closePath();
+            ctx.fillStyle = (h % 2 === 0) ? '#ffffff' : '#fef9c3'; 
+            ctx.fill();
+        }
+
+        // 外枠
         ctx.beginPath();
         ctx.arc(center, center, faceRadius, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff'; ctx.fill();
         ctx.strokeStyle = '#475569'; ctx.lineWidth = 3; ctx.stroke();
+
+        // 目盛りと数字
         for (let i = 1; i <= 60; i++) {
             const angle = (i * 6 - 90) * Math.PI / 180;
+            
             if (i % 5 === 0) {
                 const hNum = i / 5;
-                const xH = center + Math.cos(angle) * (faceRadius + 24);
-                const yH = center + Math.sin(angle) * (faceRadius + 24);
+                // 「時」の数字：内側に配置（faceRadius * 0.75）
+                const xH = center + Math.cos(angle) * (faceRadius * 0.75);
+                const yH = center + Math.sin(angle) * (faceRadius * 0.75);
                 ctx.font = `bold ${displaySize * 0.1}px 'Zen Maru Gothic'`;
                 ctx.fillStyle = '#1e293b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(hNum, xH, yH);
+
+                // 「分」の数字：外側に配置（faceRadius + 24）
                 const mNum = i === 60 ? 0 : i;
-                const xM = center + Math.cos(angle) * (faceRadius * 0.75);
-                const yM = center + Math.sin(angle) * (faceRadius * 0.75);
+                const xM = center + Math.cos(angle) * (faceRadius + 24);
+                const yM = center + Math.sin(angle) * (faceRadius + 24);
                 ctx.font = `bold ${displaySize * 0.045}px 'Zen Maru Gothic'`;
-                ctx.fillStyle = '#cbd5e1'; ctx.fillText(mNum, xM, yM);
+                ctx.fillStyle = '#94a3b8'; ctx.fillText(mNum, xM, yM);
+
+                // 大きな目盛り
                 ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = '#1e293b';
                 ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
                 ctx.lineTo(center + Math.cos(angle) * (faceRadius - 8), center + Math.sin(angle) * (faceRadius - 8));
                 ctx.stroke();
             } else {
-                ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = '#1e293b'; 
+                // 小さな目盛り
+                ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = '#cbd5e1'; 
                 ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
                 ctx.lineTo(center + Math.cos(angle) * (faceRadius - 5), center + Math.sin(angle) * (faceRadius - 5));
                 ctx.stroke();
             }
         }
+        
+        // 針の描画
         const hAngle = ((targetHour % 12) * 30 + (targetMinute / 60) * 30 - 90) * Math.PI / 180;
         const mAngle = (targetMinute * 6 - 90) * Math.PI / 180;
-        drawHand(ctx, center, hAngle, faceRadius * 0.6, 8, '#ef4444');
+        
+        // 短針（赤色）：内側の数字を指しやすい長さに調整
+        drawHand(ctx, center, hAngle, faceRadius * 0.55, 8, '#ef4444');
+        // 長針（青色）：外側の目盛りまで届く長さに調整
         drawHand(ctx, center, mAngle, faceRadius - 4, 4, '#3b82f6');
+        
+        // 中心点
         ctx.beginPath(); ctx.arc(center, center, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#334155'; ctx.fill();
     }
@@ -655,3 +678,4 @@
 </script>
 </body>
 </html>
+

@@ -107,6 +107,8 @@
             min-height: 0;
             padding: 5px;
             position: relative;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #clock-canvas {
@@ -202,11 +204,22 @@
         .fb-text-glow {
             text-shadow: 0 0 12px white, 0 0 4px white, 2px 2px 0px #b91c1c;
         }
+
+        #btn-quit {
+            z-index: 80;
+            -webkit-tap-highlight-color: transparent;
+        }
     </style>
 </head>
 <body>
 
 <div class="game-container">
+    <!-- やめるボタン -->
+    <button id="btn-quit" class="hidden absolute top-4 left-4 px-4 py-2 bg-white/80 border-2 border-gray-300 text-gray-600 rounded-full font-bold text-sm shadow-sm active:bg-gray-100 transition-colors">
+        やめる
+    </button>
+
+    <!-- タイトル画面 -->
     <div id="title-screen" class="absolute inset-0 z-[100] title-bg flex flex-col items-center justify-center p-6 text-center">
         <h1 class="text-6xl font-black text-blue-600 mb-12 drop-shadow-lg" style="-webkit-text-stroke: 2px white;">
             いま、<br>なんじ？
@@ -217,6 +230,7 @@
         </button>
     </div>
 
+    <!-- 時計表示エリア -->
     <div id="clock-container">
         <div id="sunburst" class="sunburst-v4 hidden"></div>
         <canvas id="clock-canvas"></canvas>
@@ -226,6 +240,7 @@
         </div>
     </div>
 
+    <!-- 入力エリア -->
     <div class="relative bg-yellow-50 rounded-t-[24px] shadow-inner shrink-0 border-t-2 border-yellow-200 min-h-[220px]">
         <div id="input-container-all" class="px-4 pb-3 pt-2">
             <div class="flex justify-center items-center gap-2 mb-2">
@@ -243,6 +258,7 @@
             </div>
         </div>
 
+        <!-- 答え合わせエリア -->
         <div id="correction-area" class="hidden absolute inset-0 bg-yellow-50 rounded-t-[24px] flex flex-col items-center justify-center p-4 z-20">
             <div class="text-center mb-4">
                 <p class="text-lg font-bold text-gray-500">せいかいは</p>
@@ -255,6 +271,7 @@
         </div>
     </div>
 
+    <!-- 結果モーダル -->
     <div id="result-modal" class="hidden absolute inset-0 bg-white z-[200] flex flex-col items-center justify-center p-6 text-center overflow-hidden">
         <div id="confetti-container" class="absolute inset-0 pointer-events-none"></div>
         <div class="relative z-10">
@@ -272,6 +289,7 @@
         </div>
     </div>
 
+    <!-- 正解・不正解フィードバック -->
     <div id="feedback-overlay" class="hidden absolute inset-0 bg-white/10 flex items-center justify-center z-50 pointer-events-none">
         <div class="feedback-content">
             <div id="fb-text" class="text-5xl font-black text-red-600 fb-text-glow italic tracking-tighter mb-2"></div>
@@ -283,6 +301,7 @@
 <script>
     const canvas = document.getElementById('clock-canvas');
     const ctx = canvas.getContext('2d');
+    const clockContainer = document.getElementById('clock-container');
     const inputHour = document.getElementById('input-hour');
     const inputMin = document.getElementById('input-minute');
     const keypad = document.getElementById('keypad');
@@ -292,6 +311,8 @@
     const titleScreen = document.getElementById('title-screen');
     const btnStart = document.getElementById('btn-start');
     const btnCheck = document.getElementById('btn-check');
+    const btnQuit = document.getElementById('btn-quit');
+    const resultModal = document.getElementById('result-modal');
     
     let currentQuestion = 1;
     let score = 0;
@@ -302,7 +323,9 @@
     let typedMin = "";
     let isAcceptingInput = false;
     let isFirstInputForMode = true;
-    let usedQuestions = new Set(); 
+    let usedQuestions = new Set();
+    let isGuideVisible = false;
+    let guideTimer = null;
 
     btnStart.onclick = () => {
         titleScreen.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
@@ -311,9 +334,47 @@
         usedQuestions.clear();
         setTimeout(() => {
             titleScreen.classList.add('hidden');
+            btnQuit.classList.remove('hidden');
             newQuestion();
         }, 500);
     };
+
+    btnQuit.onclick = () => {
+        // 全ての状態をリセットしてタイトルに戻る
+        isAcceptingInput = false;
+        isGuideVisible = false;
+        if (guideTimer) clearTimeout(guideTimer);
+        
+        titleScreen.style.opacity = '1';
+        titleScreen.style.transform = 'scale(1)';
+        titleScreen.classList.remove('hidden');
+        btnQuit.classList.add('hidden');
+        resultModal.classList.add('hidden');
+        correctionArea.classList.add('hidden');
+        inputContainerAll.style.visibility = 'visible';
+        
+        currentQuestion = 1;
+        score = 0;
+    };
+
+    clockContainer.addEventListener('mousedown', activateGuide);
+    clockContainer.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        activateGuide();
+    }, { passive: false });
+
+    function activateGuide() {
+        if (!isAcceptingInput) return;
+        
+        isGuideVisible = true;
+        drawClock();
+
+        if (guideTimer) clearTimeout(guideTimer);
+        guideTimer = setTimeout(() => {
+            isGuideVisible = false;
+            drawClock();
+        }, 5000);
+    }
 
     function initKeypad() {
         keypad.innerHTML = '';
@@ -346,31 +407,34 @@
         clearErrorStyles();
 
         if (currentInputMode === 'hour') {
+            const ansHourDisplay = (targetHour === 0 || targetHour === 12) ? 12 : targetHour;
+            
             if (isFirstInputForMode || typedHour === "") {
                 typedHour = num.toString();
                 isFirstInputForMode = false;
                 inputHour.innerText = typedHour;
-                if (num !== 1) setTimeout(() => setInputMode('minute'), 150);
+
+                if (num !== 1) {
+                    setTimeout(() => setInputMode('minute'), 150);
+                }
             } else {
                 if (typedHour === "1") {
-                    const ansHour = (targetHour === 0 || targetHour === 12) ? 12 : targetHour;
-                    if (num >= 3) {
+                    if (ansHourDisplay === 1) {
+                        if (num === 0 || num === 1) {
+                            setInputMode('minute');
+                            handleNumber(num);
+                            return;
+                        }
+                    }
+                    if (num <= 2) {
+                        typedHour += num.toString();
+                        inputHour.innerText = typedHour;
+                        setTimeout(() => setInputMode('minute'), 150);
+                    } else {
                         setInputMode('minute');
                         handleNumber(num);
                         return;
-                    } 
-                    if (ansHour === 1 && (num === 1 || num === 2)) {
-                        setInputMode('minute');
-                        handleNumber(num); 
-                        return;
                     }
-                    typedHour += num.toString();
-                    inputHour.innerText = typedHour;
-                    setTimeout(() => setInputMode('minute'), 150);
-                } else {
-                    typedHour = num.toString();
-                    inputHour.innerText = typedHour;
-                    if (num !== 1) setTimeout(() => setInputMode('minute'), 150);
                 }
             }
         } else {
@@ -412,7 +476,7 @@
         if (!isAcceptingInput) return;
         if (currentInputMode === 'hour') { typedHour = ""; inputHour.innerText = "?"; }
         else { typedMin = ""; inputMin.innerText = "??"; }
-        isFirstInputForMode = false;
+        isFirstInputForMode = true;
         clearErrorStyles();
         updateKeypadState();
     };
@@ -548,6 +612,9 @@
         const splashText = document.getElementById('splash-text');
         const splashSubtext = document.getElementById('splash-subtext');
         isAcceptingInput = false;
+        isGuideVisible = false;
+        if (guideTimer) clearTimeout(guideTimer);
+
         splashText.innerText = `だい${currentQuestion}もん`;
         if (currentQuestion === 5) splashSubtext.classList.remove('hidden');
         else splashSubtext.classList.add('hidden');
@@ -600,7 +667,6 @@
         const faceRadius = displaySize * 0.35; 
         ctx.clearRect(0, 0, displaySize, displaySize);
 
-        // 1時間ごとの背景色分け
         for (let h = 0; h < 12; h++) {
             const startAngle = (h * 30 - 90) * Math.PI / 180;
             const endAngle = ((h + 1) * 30 - 90) * Math.PI / 180;
@@ -608,59 +674,65 @@
             ctx.moveTo(center, center);
             ctx.arc(center, center, faceRadius, startAngle, endAngle);
             ctx.closePath();
-            ctx.fillStyle = (h % 2 === 0) ? '#ffffff' : '#fef9c3'; 
+            
+            if (isGuideVisible) {
+                ctx.fillStyle = (h % 2 === 0) ? '#ffffff' : '#e0f2fe';
+            } else {
+                ctx.fillStyle = '#ffffff';
+            }
             ctx.fill();
         }
 
-        // 外枠
         ctx.beginPath();
         ctx.arc(center, center, faceRadius, 0, Math.PI * 2);
         ctx.strokeStyle = '#475569'; ctx.lineWidth = 3; ctx.stroke();
 
-        // 目盛りと数字
         for (let i = 1; i <= 60; i++) {
             const angle = (i * 6 - 90) * Math.PI / 180;
+            const mNum = i === 60 ? 0 : i;
+            const xM = center + Math.cos(angle) * (faceRadius + 24);
+            const yM = center + Math.sin(angle) * (faceRadius + 24);
             
             if (i % 5 === 0) {
+                ctx.font = `bold ${displaySize * 0.045}px 'Zen Maru Gothic'`;
+                ctx.fillStyle = '#64748b'; 
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(mNum, xM, yM);
+
                 const hNum = i / 5;
-                // 「時」の数字：内側に配置（faceRadius * 0.75）
-                const xH = center + Math.cos(angle) * (faceRadius * 0.75);
-                const yH = center + Math.sin(angle) * (faceRadius * 0.75);
+                const xH = center + Math.cos(angle) * (faceRadius * 0.73);
+                const yH = center + Math.sin(angle) * (faceRadius * 0.73);
                 ctx.font = `bold ${displaySize * 0.1}px 'Zen Maru Gothic'`;
-                ctx.fillStyle = '#1e293b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#1e293b'; 
                 ctx.fillText(hNum, xH, yH);
 
-                // 「分」の数字：外側に配置（faceRadius + 24）
-                const mNum = i === 60 ? 0 : i;
-                const xM = center + Math.cos(angle) * (faceRadius + 24);
-                const yM = center + Math.sin(angle) * (faceRadius + 24);
-                ctx.font = `bold ${displaySize * 0.045}px 'Zen Maru Gothic'`;
-                ctx.fillStyle = '#94a3b8'; ctx.fillText(mNum, xM, yM);
-
-                // 大きな目盛り
                 ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = '#1e293b';
                 ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
                 ctx.lineTo(center + Math.cos(angle) * (faceRadius - 8), center + Math.sin(angle) * (faceRadius - 8));
                 ctx.stroke();
             } else {
-                // 小さな目盛り
-                ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = '#cbd5e1'; 
+                if (isGuideVisible) {
+                    ctx.font = `bold ${displaySize * 0.025}px 'Zen Maru Gothic'`;
+                    ctx.fillStyle = '#94a3b8'; 
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(mNum, xM, yM);
+                }
+
+                ctx.beginPath(); 
+                ctx.lineWidth = 1; 
+                ctx.strokeStyle = isGuideVisible ? '#94a3b8' : '#cbd5e1'; 
                 ctx.moveTo(center + Math.cos(angle) * faceRadius, center + Math.sin(angle) * faceRadius);
                 ctx.lineTo(center + Math.cos(angle) * (faceRadius - 5), center + Math.sin(angle) * (faceRadius - 5));
                 ctx.stroke();
             }
         }
         
-        // 針の描画
         const hAngle = ((targetHour % 12) * 30 + (targetMinute / 60) * 30 - 90) * Math.PI / 180;
         const mAngle = (targetMinute * 6 - 90) * Math.PI / 180;
         
-        // 短針（赤色）：内側の数字を指しやすい長さに調整
-        drawHand(ctx, center, hAngle, faceRadius * 0.55, 8, '#ef4444');
-        // 長針（青色）：外側の目盛りまで届く長さに調整
+        drawHand(ctx, center, hAngle, faceRadius * 0.52, 8, '#ef4444');
         drawHand(ctx, center, mAngle, faceRadius - 4, 4, '#3b82f6');
         
-        // 中心点
         ctx.beginPath(); ctx.arc(center, center, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#334155'; ctx.fill();
     }

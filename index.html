@@ -325,6 +325,7 @@
     let isFirstInputForMode = true;
     let usedQuestions = new Set();
     let isGuideVisible = false;
+    let isCorrectionMode = false; // 不正解時のガイド固定フラグ
     let guideTimer = null;
 
     btnStart.onclick = () => {
@@ -340,9 +341,9 @@
     };
 
     btnQuit.onclick = () => {
-        // 全ての状態をリセットしてタイトルに戻る
         isAcceptingInput = false;
         isGuideVisible = false;
+        isCorrectionMode = false;
         if (guideTimer) clearTimeout(guideTimer);
         
         titleScreen.style.opacity = '1';
@@ -364,15 +365,17 @@
     }, { passive: false });
 
     function activateGuide() {
-        if (!isAcceptingInput) return;
+        if (!isAcceptingInput || isCorrectionMode) return;
         
         isGuideVisible = true;
         drawClock();
 
         if (guideTimer) clearTimeout(guideTimer);
         guideTimer = setTimeout(() => {
-            isGuideVisible = false;
-            drawClock();
+            if (!isCorrectionMode) {
+                isGuideVisible = false;
+                drawClock();
+            }
         }, 5000);
     }
 
@@ -533,6 +536,10 @@
                 answerText.innerText = `${h}じ ${m}ふん`;
                 inputContainerAll.style.visibility = 'hidden';
                 correctionArea.classList.remove('hidden');
+                // 不正解時の答え合わせ中：ガイドをオンにして時計を再描画
+                isCorrectionMode = true;
+                isGuideVisible = true;
+                drawClock();
             }, 1000);
         }
     }
@@ -540,6 +547,9 @@
     document.getElementById('btn-ok').onclick = () => {
         inputContainerAll.style.visibility = 'visible';
         correctionArea.classList.add('hidden');
+        // ガイドをリセット
+        isCorrectionMode = false;
+        isGuideVisible = false;
         nextStep();
     };
 
@@ -613,6 +623,7 @@
         const splashSubtext = document.getElementById('splash-subtext');
         isAcceptingInput = false;
         isGuideVisible = false;
+        isCorrectionMode = false;
         if (guideTimer) clearTimeout(guideTimer);
 
         splashText.innerText = `だい${currentQuestion}もん`;
@@ -624,7 +635,9 @@
         while (attempts < 100) {
             targetHour = Math.floor(Math.random() * 12) + 1;
             
-            if (currentQuestion === 6) {
+            if (currentQuestion === 1) {
+                targetMinute = 0;
+            } else if (currentQuestion === 6) {
                 let possibleMins = [];
                 for(let m=1; m<60; m++) if(m!==30) possibleMins.push(m);
                 targetMinute = possibleMins[Math.floor(Math.random() * possibleMins.length)];
